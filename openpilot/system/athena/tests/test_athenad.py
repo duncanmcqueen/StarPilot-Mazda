@@ -346,6 +346,15 @@ class TestAthenadMethods(OpenpilotTestCase):
       resp = dispatcher["uploadFilesToUrls"]([{"fn": "2026-10-04--00-00-00--0/rlog", "url": url, "headers": {}}])
       assert resp == {'enqueued': 0, 'items': [], 'failed': ['2026-10-04--00-00-00--0/rlog']}
 
+  def test_upload_files_to_urls_malformed_url_fails_only_that_file(self, host):
+    # urlsplit raises on an unmatched IPv6 bracket; the rest of the batch must still be queued.
+    fn = self._create_file('rlog.zst')
+    files = [{"fn": "2026-10-04--00-00-00--0/rlog", "url": "http://[::1/0/rlog.zst", "headers": {}},
+             {"fn": "2026-10-04--00-00-00--0/rlog.zst", "url": f"{host}/0/rlog.zst?sig=y", "headers": {}}]
+    resp = dispatcher["uploadFilesToUrls"](files)
+    assert resp['failed'] == ['2026-10-04--00-00-00--0/rlog']
+    assert resp['enqueued'] == 1 and resp['items'][0]['path'] == fn
+
   def test_upload_file_to_url_does_not_exist(self, host):
     not_exists_resp = dispatcher["uploadFileToUrl"]("does_not_exist.zst", "http://localhost:1238", {})
     assert not_exists_resp == {'enqueued': 0, 'items': [], 'failed': ['does_not_exist.zst']}
