@@ -686,9 +686,14 @@ def uploadFilesToUrls(files_data: list[UploadFileDict]) -> UploadFilesToUrlRespo
     # Konik requests the bare name ("<segment>/rlog") with an upload URL for "rlog.zst", while the device stores
     # rlog.zst. Upload the stored .zst file when that is exactly what the URL path expects (the parsed path,
     # so a query or fragment cannot make a plain-file URL look like a .zst one, or the reverse).
-    if (not file.fn.endswith('.zst') and not os.path.exists(path) and os.path.exists(path + '.zst') and
-        urlsplit(file.url).path.endswith('/' + os.path.basename(file.fn) + '.zst')):
-      path += '.zst'
+    if not file.fn.endswith('.zst') and not os.path.exists(path) and os.path.exists(path + '.zst'):
+      try:
+        url_path = urlsplit(file.url).path
+      except ValueError:  # a malformed URL fails this file only, not the rest of the batch
+        failed.append(file.fn)
+        continue
+      if url_path.endswith('/' + os.path.basename(file.fn) + '.zst'):
+        path += '.zst'
     if not owns_recording(path, Paths.log_root()) or (not os.path.exists(path) and not os.path.exists(strip_zst_extension(path))):
       failed.append(file.fn)
       continue
